@@ -34,13 +34,13 @@ app.get("/admin", (req, res) => {
             padding: 20px;
         }
         .box {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: auto;
             background: #1c1c1c;
             padding: 20px;
             border-radius: 10px;
         }
-        input {
+        input, select {
             margin: 5px;
             padding: 10px;
             border: none;
@@ -103,6 +103,12 @@ app.get("/admin", (req, res) => {
     <h3>Create User</h3>
     <input id="username" placeholder="Username">
     <input id="password" placeholder="Password">
+    <select id="days">
+        <option value="1">1 Day</option>
+        <option value="3">3 Days</option>
+        <option value="7">7 Days</option>
+        <option value="30">30 Days</option>
+    </select>
     <button class="create-btn" onclick="createUser()">Create</button>
 
     <h3>Users List</h3>
@@ -116,6 +122,7 @@ app.get("/admin", (req, res) => {
                 <th>Vehicle</th>
                 <th>Stockyard</th>
                 <th>Delivery Code</th>
+                <th>Expiry</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -169,7 +176,8 @@ function createUser() {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
             username: document.getElementById("username").value,
-            password: document.getElementById("password").value
+            password: document.getElementById("password").value,
+            days: document.getElementById("days").value
         })
     })
     .then(res => res.json())
@@ -185,6 +193,10 @@ function loadUsers() {
     .then(data => {
         let html = "";
         for (let user in data) {
+            const expiryText = data[user].expiry
+                ? new Date(data[user].expiry).toLocaleString()
+                : "";
+
             html += \`
             <tr>
                 <td>\${user}</td>
@@ -192,6 +204,7 @@ function loadUsers() {
                 <td><input value="\${data[user].vehicle || ""}" id="v_\${user}"></td>
                 <td><input value="\${data[user].stockyard || ""}" id="s_\${user}"></td>
                 <td><input value="\${data[user].delivery_code || ""}" id="d_\${user}"></td>
+                <td>\${expiryText}</td>
                 <td>
                     <button class="update-btn" onclick="updateUser('\${user}')">Update</button>
                     <button class="delete-btn" onclick="deleteUser('\${user}')">Delete</button>
@@ -251,7 +264,7 @@ app.post("/admin/login", (req, res) => {
 });
 
 app.post("/admin/create-user", (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, days } = req.body;
 
     if (!username || !password) {
         return res.json({ status: "missing_fields" });
@@ -261,14 +274,18 @@ app.post("/admin/create-user", (req, res) => {
         return res.json({ status: "exists" });
     }
 
+    const totalDays = parseInt(days || 1);
+    const expiry = Date.now() + (totalDays * 24 * 60 * 60 * 1000);
+
     users[username] = {
         password,
         stockyard: "",
         vehicle: "",
-        delivery_code: ""
+        delivery_code: "",
+        expiry
     };
 
-    res.json({ status: "created" });
+    res.json({ status: "created", expiry });
 });
 
 app.get("/admin/users", (req, res) => {
@@ -305,6 +322,10 @@ app.get("/api/user/stockyard/:username", (req, res) => {
 
     if (!user) {
         return res.json({ status: "error" });
+    }
+
+    if (Date.now() > user.expiry) {
+        return res.json({ status: "expired" });
     }
 
     res.json({
