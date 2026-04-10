@@ -14,6 +14,10 @@ app.get("/", (req, res) => {
     res.send("DDOTP Server Running");
 });
 
+app.get("/otp", (req, res) => {
+    res.json({ otp: 1234 });
+});
+
 // Admin login
 app.post("/admin/login", (req, res) => {
     const { username, password } = req.body;
