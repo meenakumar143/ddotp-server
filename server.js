@@ -27,67 +27,294 @@ app.get("/", (req, res) => {
   res.send("DDOTP Running");
 });
 
-// SERVER-SIDE AUTOFILL PAGE
+// AUTO PAGE
 app.get("/autofill3", async (req, res) => {
   const username = String(req.query.username || "").trim();
 
   let stockyard = "";
   let vehicle = "";
   let delivery_code = "";
-  let message = "Username enter chesi Load chey.";
+  let message = "Waiting...";
 
   if (username) {
     try {
       const user = await User.findOne({ username });
 
       if (!user) {
-        message = "User not found.";
+        message = "User not found";
       } else if (Date.now() > user.expiry) {
-        message = "User expired.";
+        message = "User expired";
       } else {
         stockyard = user.stockyard || "";
         vehicle = user.vehicle || "";
         delivery_code = user.delivery_code || "";
-        message = "Data loaded successfully.";
+        message = "Auto Loaded ✅";
       }
     } catch (e) {
       message = "Error: " + e.message;
     }
+  } else {
+    message = "No username";
   }
 
   res.send(`<!DOCTYPE html>
 <html>
 <head>
-  <title>DDOTP Auto Fill 3</title>
-  <style>
-    body { background:#111; color:#fff; font-family:sans-serif; padding:20px; }
-    input, button { display:block; margin:10px 0; padding:10px; width:320px; }
-    .msg { margin:15px 0; color:#ffd166; }
-  </style>
+<title>DDOTP AUTO</title>
+<style>
+body{background:#0d1117;color:#fff;font-family:sans-serif;padding:20px}
+input{display:block;margin:10px 0;padding:10px;width:320px;font-size:16px}
+button{padding:10px;margin:5px;cursor:pointer}
+.copy{background:#00b894;color:#fff;border:none}
+.status{margin:10px 0;color:#ffd166;font-weight:bold}
+.box{background:#161b22;padding:15px;border-radius:10px;width:350px}
+</style>
 </head>
 <body>
 
-  <h2>DDOTP Auto Fill 3</h2>
+<h2>DDOTP AUTO ⚡</h2>
 
-  <form method="GET" action="/autofill3">
-    <label>Username</label>
-    <input name="username" value="${username.replace(/"/g, "&quot;")}" placeholder="Enter Username">
-    <button type="submit">Load</button>
-  </form>
+<div class="status">${message}</div>
 
-  <div class="msg">${message}</div>
+<div class="box">
 
-  <label>Stockyard</label>
-  <input value="${stockyard.replace(/"/g, "&quot;")}" readonly>
+<label>Stockyard</label>
+<input id="stockyard" value="${stockyard}">
+<button class="copy" onclick="copyText('stockyard')">Copy</button>
 
-  <label>Vehicle</label>
-  <input value="${vehicle.replace(/"/g, "&quot;")}" readonly>
+<label>Vehicle</label>
+<input id="vehicle" value="${vehicle}">
+<button class="copy" onclick="copyText('vehicle')">Copy</button>
 
-  <label>Delivery Code</label>
-  <input value="${delivery_code.replace(/"/g, "&quot;")}" readonly>
+<label>Delivery Code</label>
+<input id="delivery_code" value="${delivery_code}">
+<button class="copy" onclick="copyText('delivery_code')">Copy</button>
+
+</div>
+
+<script>
+function copyText(id){
+  const val = document.getElementById(id).value;
+  navigator.clipboard.writeText(val);
+  alert(id + " copied: " + val);
+}
+</script>
 
 </body>
 </html>`);
+});
+
+// TEST PAGE
+app.get("/test", (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>DDOTP Test</title>
+<style>
+body{background:#111;color:#fff;font-family:sans-serif;padding:20px}
+input,button{padding:10px;margin:5px}
+pre{background:#222;padding:15px;border-radius:8px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+
+<h2>DDOTP Test Page</h2>
+
+<input id="username" placeholder="Enter username">
+<button id="loadBtn">Load Data</button>
+
+<pre id="output">Waiting...</pre>
+
+<script>
+document.getElementById("loadBtn").addEventListener("click", async function () {
+  const u = document.getElementById("username").value.trim();
+  const out = document.getElementById("output");
+
+  if(!u){
+    alert("enter username");
+    return;
+  }
+
+  out.textContent = "Loading...";
+
+  try {
+    const res = await fetch("/api/user/stockyard/" + encodeURIComponent(u));
+    const data = await res.json();
+    out.textContent = JSON.stringify(data, null, 2);
+  } catch (e) {
+    out.textContent = "Error: " + e.message;
+  }
+});
+</script>
+
+</body>
+</html>
+`);
+});
+
+// ADMIN LOGIN
+app.post("/admin/login", (req, res) => {
+  if (req.body.username === "admin" && req.body.password === "1234") {
+    return res.json({ status: "success" });
+  }
+  res.json({ status: "invalid" });
+});
+
+// ADMIN PAGE
+app.get("/admin", (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>DDOTP Admin</title>
+<style>
+body{background:#111;color:#fff;font-family:sans-serif}
+input,select{padding:8px;margin:5px}
+button{padding:8px;margin:5px;cursor:pointer}
+table{width:100%;margin-top:20px;border-collapse:collapse}
+td,th{border:1px solid #555;padding:8px;text-align:center}
+</style>
+</head>
+<body>
+
+<div id="loginBox">
+<h2>Admin Login</h2>
+<input id="adminUser" placeholder="Username">
+<input id="adminPass" type="password" placeholder="Password">
+<button onclick="adminLogin()">Login</button>
+<div id="msg"></div>
+</div>
+
+<div id="panelBox" style="display:none">
+<h2>Admin Panel</h2>
+
+<input id="username" placeholder="Username">
+<input id="password" placeholder="Password">
+<select id="days">
+<option value="1">1 Day</option>
+<option value="3">3 Days</option>
+<option value="7">7 Days</option>
+</select>
+<button onclick="createUser()">Create</button>
+
+<button onclick="loadUsers()">Refresh</button>
+
+<table>
+<thead>
+<tr>
+<th>User</th><th>Password</th><th>Vehicle</th><th>Stockyard</th><th>Delivery</th><th>Expiry</th><th>Actions</th>
+</tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
+</div>
+
+<script>
+function adminLogin(){
+fetch("/admin/login",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+username:document.getElementById("adminUser").value,
+password:document.getElementById("adminPass").value
+})
+})
+.then(r=>r.json())
+.then(d=>{
+if(d.status==="success"){
+document.getElementById("loginBox").style.display="none";
+document.getElementById("panelBox").style.display="block";
+loadUsers();
+}else{
+document.getElementById("msg").innerText="Invalid";
+}
+});
+}
+
+function createUser(){
+fetch("/admin/create-user",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+username:document.getElementById("username").value,
+password:document.getElementById("password").value,
+days:document.getElementById("days").value
+})
+})
+.then(r=>r.json())
+.then(d=>{
+alert(JSON.stringify(d));
+loadUsers();
+});
+}
+
+function loadUsers(){
+fetch("/admin/users")
+.then(r=>r.json())
+.then(data=>{
+let html="";
+for(let u in data){
+let e = data[u].expiry ? new Date(data[u].expiry).toLocaleString() : "";
+html += \`
+<tr>
+<td>\${u}</td>
+<td><input value="\${data[u].password || ""}" id="p_\${u}"></td>
+<td><input value="\${data[u].vehicle || ""}" id="v_\${u}"></td>
+<td><input value="\${data[u].stockyard || ""}" id="s_\${u}"></td>
+<td><input value="\${data[u].delivery_code || ""}" id="d_\${u}"></td>
+<td>\${e}</td>
+<td>
+<button onclick="updateUser('\${u}')">Update</button>
+<button onclick="deleteUser('\${u}')">Delete</button>
+<button onclick="extendUser('\${u}',1)">+1</button>
+<button onclick="extendUser('\${u}',7)">+7</button>
+</td>
+</tr>\`;
+}
+document.getElementById("table").innerHTML = html;
+});
+}
+
+function updateUser(u){
+fetch("/admin/update-user",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+username:u,
+vehicle:document.getElementById("v_"+u).value,
+stockyard:document.getElementById("s_"+u).value,
+delivery_code:document.getElementById("d_"+u).value
+})
+})
+.then(r=>r.json())
+.then(()=>loadUsers());
+}
+
+function deleteUser(u){
+fetch("/admin/delete-user",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:u})
+})
+.then(r=>r.json())
+.then(()=>loadUsers());
+}
+
+function extendUser(u,d){
+fetch("/admin/extend-user",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:u,days:d})
+})
+.then(r=>r.json())
+.then(()=>loadUsers());
+}
+</script>
+
+</body>
+</html>
+`);
 });
 
 // CREATE USER
@@ -95,7 +322,9 @@ app.post("/admin/create-user", async (req, res) => {
   try {
     const { username, password, days } = req.body;
 
-    if (!username || !password) return res.json({ status: "missing" });
+    if (!username || !password) {
+      return res.json({ status: "missing" });
+    }
 
     const exist = await User.findOne({ username });
     if (exist) return res.json({ status: "exists" });
@@ -172,7 +401,7 @@ app.post("/admin/extend-user", async (req, res) => {
     user.expiry = (user.expiry || Date.now()) + (parseInt(days || 1, 10) * 86400000);
     await user.save();
 
-    res.json({ status: "extended" });
+    res.json({ status: "extended", expiry: user.expiry });
   } catch (err) {
     console.log("EXTEND USER ERROR:", err);
     res.json({ status: "error" });
