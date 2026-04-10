@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const app = express();
 
@@ -20,78 +21,18 @@ const User = mongoose.model("User", new mongoose.Schema({
   stockyard: String,
   vehicle: String,
   delivery_code: String,
-  expiry: Number
+  expiry: Number,
+  token: String,
+  token_created_at: Number
 }));
 
 // Home
 app.get("/", (req, res) => {
-  res.send("DDOTP Running");
+  res.send("DDOTP Running with Token System");
 });
 
-// ================= AUTOFILL3 (SERVER-SIDE RENDER) =================
-app.get("/autofill3", async (req, res) => {
-  try {
-    const username = String(req.query.username || "").trim();
-
-    let stockyard = "";
-    let vehicle = "";
-    let delivery_code = "";
-    let message = "No username";
-
-    if (username) {
-      const user = await User.findOne({ username });
-
-      if (!user) {
-        message = "User not found";
-      } else if (Date.now() > user.expiry) {
-        message = "User expired";
-      } else {
-        stockyard = user.stockyard || "";
-        vehicle = user.vehicle || "";
-        delivery_code = user.delivery_code || "";
-        message = "Auto Loaded ✅";
-      }
-    }
-
-    res.send(`<!DOCTYPE html>
-<html>
-<head>
-  <title>DDOTP AutoFill 3</title>
-  <style>
-    body { background:#111; color:#fff; font-family:sans-serif; padding:20px; }
-    input { display:block; margin:10px 0; padding:10px; width:320px; }
-    .msg { margin:15px 0; color:#ffd166; font-weight:bold; }
-  </style>
-</head>
-<body>
-
-  <h2>DDOTP AutoFill 3</h2>
-  <div class="msg">${message}</div>
-
-  <form method="GET" action="/autofill3">
-    <input name="username" value="${username.replace(/"/g, "&quot;")}" placeholder="Enter username">
-    <button type="submit">Load</button>
-  </form>
-
-  <label>Stockyard</label>
-  <input value="${stockyard.replace(/"/g, "&quot;")}" readonly>
-
-  <label>Vehicle</label>
-  <input value="${vehicle.replace(/"/g, "&quot;")}" readonly>
-
-  <label>Delivery Code</label>
-  <input value="${delivery_code.replace(/"/g, "&quot;")}" readonly>
-
-</body>
-</html>`);
-  } catch (err) {
-    console.log("AUTOFILL3 ERROR:", err);
-    res.send("Autofill3 error");
-  }
-});
-
-// ================= LOGIN PAGE =================
-app.get("/login4", (req, res) => {
+// ================= USER LOGIN PAGE =================
+app.get("/login", (req, res) => {
   const msg = String(req.query.msg || "");
 
   res.send(`<!DOCTYPE html>
@@ -121,7 +62,7 @@ app.get("/login4", (req, res) => {
 </html>`);
 });
 
-// ================= LOGIN FORM =================
+// ================= USER LOGIN FORM =================
 app.post("/user/login-form", async (req, res) => {
   try {
     const username = String(req.body.username || "").trim();
@@ -130,41 +71,47 @@ app.post("/user/login-form", async (req, res) => {
     const user = await User.findOne({ username });
 
     if (!user) {
-      return res.redirect("/login4?msg=User%20not%20found");
+      return res.redirect("/login?msg=User%20not%20found");
     }
 
     if (user.password !== password) {
-      return res.redirect("/login4?msg=Wrong%20password");
+      return res.redirect("/login?msg=Wrong%20password");
     }
 
     if (Date.now() > user.expiry) {
-      return res.redirect("/login4?msg=User%20expired");
+      return res.redirect("/login?msg=User%20expired");
     }
 
-    return res.redirect("/dashboard2?username=" + encodeURIComponent(username));
+    // 🔥 Token generate
+    const token = crypto.randomBytes(24).toString("hex");
+    user.token = token;
+    user.token_created_at = Date.now();
+    await user.save();
+
+    return res.redirect("/dashboard?token=" + encodeURIComponent(token));
   } catch (err) {
     console.log("LOGIN ERROR:", err);
-    return res.redirect("/login4?msg=Login%20error");
+    return res.redirect("/login?msg=Login%20error");
   }
 });
 
 // ================= DASHBOARD =================
-app.get("/dashboard2", async (req, res) => {
+app.get("/dashboard", async (req, res) => {
   try {
-    const username = String(req.query.username || "").trim();
+    const token = String(req.query.token || "").trim();
 
-    if (!username) {
-      return res.redirect("/login4?msg=Please%20login");
+    if (!token) {
+      return res.redirect("/login?msg=No%20token");
     }
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ token });
 
     if (!user) {
-      return res.redirect("/login4?msg=User%20not%20found");
+      return res.redirect("/login?msg=Invalid%20token");
     }
 
     if (Date.now() > user.expiry) {
-      return res.redirect("/login4?msg=User%20expired");
+      return res.redirect("/login?msg=User%20expired");
     }
 
     res.send(`<!DOCTYPE html>
@@ -175,80 +122,153 @@ app.get("/dashboard2", async (req, res) => {
     body{background:#0d1117;color:#fff;font-family:sans-serif;padding:20px}
     input{display:block;margin:10px 0;padding:10px;width:320px}
     button{padding:10px;margin:5px;cursor:pointer}
-    .box{background:#161b22;padding:15px;border-radius:10px;width:350px}
+    .box{background:#161b22;padding:15px;border-radius:10px;width:380px}
+    .line{margin:8px 0;color:#ffd166}
   </style>
 </head>
 <body>
 
-<h2>DDOTP Dashboard</h2>
-<div>User: ${username}</div>
+<h2>DDOTP Secure Dashboard</h2>
+
+<div class="line">User: ${user.username}</div>
+<div class="line">Token Enabled ✅</div>
 
 <div class="box">
   <label>Stockyard</label>
-  <input value="${(user.stockyard || "").replace(/"/g, "&quot;")}" readonly>
+  <input id="stockyard" value="${(user.stockyard || "").replace(/"/g, "&quot;")}" readonly>
 
   <label>Vehicle</label>
-  <input value="${(user.vehicle || "").replace(/"/g, "&quot;")}" readonly>
+  <input id="vehicle" value="${(user.vehicle || "").replace(/"/g, "&quot;")}" readonly>
 
   <label>Delivery Code</label>
-  <input value="${(user.delivery_code || "").replace(/"/g, "&quot;")}" readonly>
+  <input id="delivery_code" value="${(user.delivery_code || "").replace(/"/g, "&quot;")}" readonly>
 </div>
 
 <br>
-<a href="/autofill3?username=${encodeURIComponent(username)}" style="color:#58a6ff">Open AutoFill Page</a>
-<a href="/login4" style="color:#58a6ff;margin-left:15px">Logout</a>
+<a href="/secure-data?token=${encodeURIComponent(token)}" style="color:#58a6ff">Open Secure Data</a>
+<a href="/logout?token=${encodeURIComponent(token)}" style="color:#58a6ff;margin-left:15px">Logout</a>
 
 </body>
 </html>`);
   } catch (err) {
     console.log("DASHBOARD ERROR:", err);
-    res.redirect("/login4?msg=Dashboard%20error");
+    return res.redirect("/login?msg=Dashboard%20error");
   }
 });
 
-// ================= TEST PAGE =================
-app.get("/test", (req, res) => {
-  res.send(`<!DOCTYPE html>
+// ================= SECURE DATA =================
+app.get("/secure-data", async (req, res) => {
+  try {
+    const token = String(req.query.token || req.headers.token || "").trim();
+
+    if (!token) {
+      return res.json({ status: "unauthorized" });
+    }
+
+    const user = await User.findOne({ token });
+
+    if (!user) {
+      return res.json({ status: "unauthorized" });
+    }
+
+    if (Date.now() > user.expiry) {
+      return res.json({ status: "expired" });
+    }
+
+    res.json({
+      status: "success",
+      username: user.username,
+      stockyard: user.stockyard || "",
+      vehicle: user.vehicle || "",
+      delivery_code: user.delivery_code || ""
+    });
+  } catch (err) {
+    console.log("SECURE DATA ERROR:", err);
+    res.json({ status: "error" });
+  }
+});
+
+// ================= LOGOUT =================
+app.get("/logout", async (req, res) => {
+  try {
+    const token = String(req.query.token || "").trim();
+
+    if (token) {
+      const user = await User.findOne({ token });
+      if (user) {
+        user.token = "";
+        user.token_created_at = 0;
+        await user.save();
+      }
+    }
+
+    res.redirect("/login?msg=Logged%20out");
+  } catch (err) {
+    console.log("LOGOUT ERROR:", err);
+    res.redirect("/login?msg=Logout%20error");
+  }
+});
+
+// ================= AUTOFILL3 =================
+app.get("/autofill3", async (req, res) => {
+  try {
+    const username = String(req.query.username || "").trim();
+
+    let stockyard = "";
+    let vehicle = "";
+    let delivery_code = "";
+    let message = "No username";
+
+    if (username) {
+      const user = await User.findOne({ username });
+
+      if (!user) {
+        message = "User not found";
+      } else if (Date.now() > user.expiry) {
+        message = "User expired";
+      } else {
+        stockyard = user.stockyard || "";
+        vehicle = user.vehicle || "";
+        delivery_code = user.delivery_code || "";
+        message = "Auto Loaded ✅";
+      }
+    }
+
+    res.send(`<!DOCTYPE html>
 <html>
 <head>
-  <title>DDOTP Test</title>
+  <title>DDOTP AutoFill</title>
   <style>
     body{background:#111;color:#fff;font-family:sans-serif;padding:20px}
-    input,button{padding:10px;margin:5px}
-    pre{background:#222;padding:15px;border-radius:8px;white-space:pre-wrap}
+    input{display:block;margin:10px 0;padding:10px;width:320px}
+    .msg{margin:15px 0;color:#ffd166;font-weight:bold}
   </style>
 </head>
 <body>
 
-<h2>DDOTP Test Page</h2>
-<input id="username" placeholder="Enter username">
-<button id="loadBtn">Load Data</button>
-<pre id="output">Waiting...</pre>
+<h2>DDOTP AutoFill</h2>
+<div class="msg">${message}</div>
 
-<script>
-document.getElementById("loadBtn").addEventListener("click", async function () {
-  const u = document.getElementById("username").value.trim();
-  const out = document.getElementById("output");
+<form method="GET" action="/autofill3">
+  <input name="username" value="${username.replace(/"/g, "&quot;")}" placeholder="Enter username">
+  <button type="submit">Load</button>
+</form>
 
-  if(!u){
-    alert("enter username");
-    return;
-  }
+<label>Stockyard</label>
+<input value="${stockyard.replace(/"/g, "&quot;")}" readonly>
 
-  out.textContent = "Loading...";
+<label>Vehicle</label>
+<input value="${vehicle.replace(/"/g, "&quot;")}" readonly>
 
-  try {
-    const res = await fetch("/api/user/stockyard/" + encodeURIComponent(u));
-    const data = await res.json();
-    out.textContent = JSON.stringify(data, null, 2);
-  } catch (e) {
-    out.textContent = "Error: " + e.message;
-  }
-});
-</script>
+<label>Delivery Code</label>
+<input value="${delivery_code.replace(/"/g, "&quot;")}" readonly>
 
 </body>
 </html>`);
+  } catch (err) {
+    console.log("AUTOFILL ERROR:", err);
+    res.send("Autofill error");
+  }
 });
 
 // ================= ADMIN LOGIN API =================
@@ -300,7 +320,7 @@ td,th{border:1px solid #555;padding:8px;text-align:center}
 <table>
 <thead>
 <tr>
-<th>User</th><th>Password</th><th>Vehicle</th><th>Stockyard</th><th>Delivery</th><th>Expiry</th><th>Actions</th>
+<th>User</th><th>Password</th><th>Vehicle</th><th>Stockyard</th><th>Delivery</th><th>Expiry</th><th>Token</th><th>Actions</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
@@ -353,6 +373,7 @@ fetch("/admin/users")
 let html="";
 for(let u in data){
 let e = data[u].expiry ? new Date(data[u].expiry).toLocaleString() : "";
+let t = data[u].token || "";
 html += \`
 <tr>
 <td>\${u}</td>
@@ -361,6 +382,7 @@ html += \`
 <td><input value="\${data[u].stockyard || ""}" id="s_\${u}"></td>
 <td><input value="\${data[u].delivery_code || ""}" id="d_\${u}"></td>
 <td>\${e}</td>
+<td style="max-width:180px;word-break:break-all;">\${t}</td>
 <td>
 <button onclick="updateUser('\${u}')">Update</button>
 <button onclick="deleteUser('\${u}')">Delete</button>
@@ -433,7 +455,9 @@ app.post("/admin/create-user", async (req, res) => {
       stockyard: "",
       vehicle: "",
       delivery_code: "",
-      expiry
+      expiry,
+      token: "",
+      token_created_at: 0
     });
 
     res.json({ status: "created" });
