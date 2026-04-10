@@ -27,6 +27,87 @@ app.get("/", (req, res) => {
   res.send("DDOTP Running");
 });
 
+// USER LOGIN PAGE
+app.get("/login", (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+<title>DDOTP Login</title>
+<style>
+body{background:#0d1117;color:#fff;font-family:sans-serif;padding:20px}
+input{display:block;margin:10px 0;padding:10px;width:300px}
+button{padding:10px;margin-top:10px;cursor:pointer}
+#msg{margin-top:10px;color:#ffd166}
+</style>
+</head>
+<body>
+
+<h2>User Login</h2>
+
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<button onclick="loginUser()">Login</button>
+
+<div id="msg"></div>
+
+<script>
+function loginUser(){
+  fetch("/user/login",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      username:document.getElementById("username").value,
+      password:document.getElementById("password").value
+    })
+  })
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.status==="success"){
+      window.location="/autofill3?username="+encodeURIComponent(d.username);
+    }else if(d.status==="expired"){
+      document.getElementById("msg").innerText="User expired";
+    }else{
+      document.getElementById("msg").innerText="Invalid login";
+    }
+  })
+  .catch(()=>{
+    document.getElementById("msg").innerText="Login error";
+  });
+}
+</script>
+
+</body>
+</html>
+`);
+});
+
+// USER LOGIN API
+app.post("/user/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.json({ status: "error" });
+    }
+
+    if (user.password !== password) {
+      return res.json({ status: "error" });
+    }
+
+    if (Date.now() > user.expiry) {
+      return res.json({ status: "expired" });
+    }
+
+    res.json({ status: "success", username });
+  } catch (err) {
+    console.log("USER LOGIN ERROR:", err);
+    res.json({ status: "error" });
+  }
+});
+
 // AUTO PAGE WITH LIVE REFRESH
 app.get("/autofill3", async (req, res) => {
   const username = String(req.query.username || "").trim();
@@ -79,7 +160,6 @@ button{padding:10px;margin:5px;cursor:pointer}
 <div class="status" id="status">${message}</div>
 
 <div class="box">
-
 <label>Stockyard</label>
 <input id="stockyard" value="${stockyard}">
 <button class="copy" onclick="copyText('stockyard')">Copy</button>
@@ -91,7 +171,6 @@ button{padding:10px;margin:5px;cursor:pointer}
 <label>Delivery Code</label>
 <input id="delivery_code" value="${delivery_code}">
 <button class="copy" onclick="copyText('delivery_code')">Copy</button>
-
 </div>
 
 <script>
