@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 
 const app = express();
 
-// CORS fix
+// ✅ CORS FIX
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "OPTIONS"],
@@ -20,18 +20,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// MongoDB Connect
+// 🔥 MongoDB Connect
 mongoose.connect("mongodb+srv://sandbookingord_db_user:Ddotp12345@ddotp-cluster.zqakueo.mongodb.net/ddotp?retryWrites=true&w=majority")
   .then(() => console.log("MongoDB Connected"))
   .catch(err => console.log("MongoDB Error:", err));
 
-// Admin login
+// 🔐 Admin
 const ADMIN = {
   username: "admin",
   password: "1234"
 };
 
-// User Schema
+// 📦 Schema
 const UserSchema = new mongoose.Schema({
   username: { type: String, unique: true },
   password: String,
@@ -43,12 +43,53 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", UserSchema);
 
-// Home
+// 🌐 Home
 app.get("/", (req, res) => {
   res.send("DDOTP Server Running with DB");
 });
 
-// Admin page
+// 🧪 TEST PAGE
+app.get("/test", (req, res) => {
+  res.send(`<!DOCTYPE html>
+<html>
+<head>
+<title>DDOTP Test</title>
+<style>
+body{background:#111;color:#fff;font-family:sans-serif;padding:20px}
+input,button{padding:10px;margin:5px}
+pre{background:#222;padding:15px;border-radius:8px}
+</style>
+</head>
+<body>
+
+<h2>DDOTP Test Page</h2>
+<input id="username" placeholder="Enter username">
+<button onclick="loadData()">Load Data</button>
+
+<pre id="output">Waiting...</pre>
+
+<script>
+async function loadData(){
+const u=document.getElementById("username").value;
+if(!u){alert("enter username");return;}
+
+output.textContent="Loading...";
+
+try{
+const res=await fetch("/api/user/stockyard/"+u);
+const data=await res.json();
+output.textContent=JSON.stringify(data,null,2);
+}catch(e){
+output.textContent="Error: "+e.message;
+}
+}
+</script>
+
+</body>
+</html>`);
+});
+
+// 🧠 ADMIN PAGE
 app.get("/admin", (req, res) => {
   res.send(`<!DOCTYPE html>
 <html>
@@ -57,7 +98,7 @@ app.get("/admin", (req, res) => {
 <style>
 body{background:#111;color:#fff;font-family:sans-serif}
 input,select{padding:8px;margin:5px}
-button{padding:8px;margin:5px;cursor:pointer}
+button{padding:8px;margin:5px}
 table{width:100%;margin-top:20px;border-collapse:collapse}
 td,th{border:1px solid #555;padding:8px;text-align:center}
 </style>
@@ -66,8 +107,8 @@ td,th{border:1px solid #555;padding:8px;text-align:center}
 
 <div id="loginBox">
 <h2>Admin Login</h2>
-<input id="adminUser" placeholder="Username">
-<input id="adminPass" type="password" placeholder="Password">
+<input id="adminUser">
+<input id="adminPass" type="password">
 <button onclick="adminLogin()">Login</button>
 <div id="msg"></div>
 </div>
@@ -89,7 +130,8 @@ td,th{border:1px solid #555;padding:8px;text-align:center}
 <table>
 <thead>
 <tr>
-<th>User</th><th>Password</th><th>Vehicle</th><th>Stockyard</th><th>Delivery</th><th>Expiry</th><th>Actions</th>
+<th>User</th><th>Password</th><th>Vehicle</th>
+<th>Stockyard</th><th>Delivery</th><th>Expiry</th><th>Actions</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
@@ -97,58 +139,40 @@ td,th{border:1px solid #555;padding:8px;text-align:center}
 </div>
 
 <script>
+
 function adminLogin(){
-fetch("/admin/login",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-username:adminUser.value,
-password:adminPass.value
-})
-})
-.then(r=>r.json())
-.then(d=>{
+fetch("/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:adminUser.value,password:adminPass.value})})
+.then(r=>r.json()).then(d=>{
 if(d.status==="success"){
 loginBox.style.display="none";
 panelBox.style.display="block";
 loadUsers();
-}else{
-msg.innerText="Invalid";
-}
+}else msg.innerText="Invalid";
 });
 }
 
 function createUser(){
-fetch("/admin/create-user",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-username:username.value,
-password:password.value,
-days:days.value
-})
-})
-.then(r=>r.json())
-.then(d=>{
+fetch("/admin/create-user",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:username.value,password:password.value,days:days.value})})
+.then(r=>r.json()).then(d=>{
 alert(JSON.stringify(d));
 loadUsers();
 });
 }
 
 function loadUsers(){
-fetch("/admin/users")
-.then(r=>r.json())
-.then(data=>{
+fetch("/admin/users").then(r=>r.json()).then(data=>{
 let html="";
 for(let u in data){
-let e = data[u].expiry ? new Date(data[u].expiry).toLocaleString() : "";
-html += \`
+let e=new Date(data[u].expiry).toLocaleString();
+html+=\`
 <tr>
 <td>\${u}</td>
-<td><input value="\${data[u].password || ""}" id="p_\${u}"></td>
-<td><input value="\${data[u].vehicle || ""}" id="v_\${u}"></td>
-<td><input value="\${data[u].stockyard || ""}" id="s_\${u}"></td>
-<td><input value="\${data[u].delivery_code || ""}" id="d_\${u}"></td>
+<td><input value="\${data[u].password}" id="p_\${u}"></td>
+<td><input value="\${data[u].vehicle||""}" id="v_\${u}"></td>
+<td><input value="\${data[u].stockyard||""}" id="s_\${u}"></td>
+<td><input value="\${data[u].delivery_code||""}" id="d_\${u}"></td>
 <td>\${e}</td>
 <td>
 <button onclick="updateUser('\${u}')">Update</button>
@@ -158,172 +182,105 @@ html += \`
 </td>
 </tr>\`;
 }
-table.innerHTML = html;
+table.innerHTML=html;
 });
 }
 
 function updateUser(u){
-fetch("/admin/update-user",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
+fetch("/admin/update-user",{method:"POST",headers:{"Content-Type":"application/json"},
 body:JSON.stringify({
 username:u,
 vehicle:document.getElementById("v_"+u).value,
 stockyard:document.getElementById("s_"+u).value,
 delivery_code:document.getElementById("d_"+u).value
-})
-}).then(r=>r.json()).then(()=>loadUsers());
+})}).then(()=>loadUsers());
 }
 
 function deleteUser(u){
-fetch("/admin/delete-user",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({username:u})
-}).then(r=>r.json()).then(()=>loadUsers());
+fetch("/admin/delete-user",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:u})}).then(()=>loadUsers());
 }
 
 function extendUser(u,d){
-fetch("/admin/extend-user",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({username:u,days:d})
-}).then(r=>r.json()).then(()=>loadUsers());
+fetch("/admin/extend-user",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:u,days:d})}).then(()=>loadUsers());
 }
+
 </script>
 
 </body>
 </html>`);
 });
 
-// Admin login API
-app.post("/admin/login", (req, res) => {
-  const { username, password } = req.body;
-  if (username === ADMIN.username && password === ADMIN.password) {
-    return res.json({ status: "success" });
-  }
-  res.json({ status: "invalid" });
+// 🔐 LOGIN API
+app.post("/admin/login",(req,res)=>{
+const {username,password}=req.body;
+if(username==="admin" && password==="1234")
+return res.json({status:"success"});
+res.json({status:"invalid"});
 });
 
-// Create user
-app.post("/admin/create-user", async (req, res) => {
-  try {
-    const { username, password, days } = req.body;
+// ➕ CREATE
+app.post("/admin/create-user", async (req,res)=>{
+const {username,password,days}=req.body;
+if(!username||!password) return res.json({status:"missing"});
 
-    if (!username || !password) {
-      return res.json({ status: "missing" });
-    }
+const exist=await User.findOne({username});
+if(exist) return res.json({status:"exists"});
 
-    const exist = await User.findOne({ username });
-    if (exist) {
-      return res.json({ status: "exists" });
-    }
+const expiry=Date.now()+(days*86400000);
 
-    const expiry = Date.now() + (parseInt(days || 1, 10) * 86400000);
+await User.create({username,password,stockyard:"",vehicle:"",delivery_code:"",expiry});
 
-    await User.create({
-      username,
-      password,
-      stockyard: "",
-      vehicle: "",
-      delivery_code: "",
-      expiry
-    });
-
-    res.json({ status: "created" });
-  } catch (err) {
-    console.log("CREATE USER ERROR:", err);
-    res.json({ status: "error", message: err.message });
-  }
+res.json({status:"created"});
 });
 
-// Users list
-app.get("/admin/users", async (req, res) => {
-  try {
-    const users = await User.find().lean();
-    let out = {};
-    users.forEach(u => {
-      out[u.username] = u;
-    });
-    res.json(out);
-  } catch (err) {
-    console.log("GET USERS ERROR:", err);
-    res.json({});
-  }
+// 📄 USERS
+app.get("/admin/users", async (req,res)=>{
+const users=await User.find();
+let out={};
+users.forEach(u=>out[u.username]=u);
+res.json(out);
 });
 
-// Update user
-app.post("/admin/update-user", async (req, res) => {
-  try {
-    const { username, vehicle, stockyard, delivery_code } = req.body;
-    await User.updateOne(
-      { username },
-      { vehicle, stockyard, delivery_code }
-    );
-    res.json({ status: "updated" });
-  } catch (err) {
-    console.log("UPDATE USER ERROR:", err);
-    res.json({ status: "error" });
-  }
+// 🔄 UPDATE
+app.post("/admin/update-user", async (req,res)=>{
+const {username,vehicle,stockyard,delivery_code}=req.body;
+await User.updateOne({username},{vehicle,stockyard,delivery_code});
+res.json({status:"updated"});
 });
 
-// Delete user
-app.post("/admin/delete-user", async (req, res) => {
-  try {
-    await User.deleteOne({ username: req.body.username });
-    res.json({ status: "deleted" });
-  } catch (err) {
-    console.log("DELETE USER ERROR:", err);
-    res.json({ status: "error" });
-  }
+// ❌ DELETE
+app.post("/admin/delete-user", async (req,res)=>{
+await User.deleteOne({username:req.body.username});
+res.json({status:"deleted"});
 });
 
-// Extend user expiry
-app.post("/admin/extend-user", async (req, res) => {
-  try {
-    const { username, days } = req.body;
-    const user = await User.findOne({ username });
-
-    if (!user) {
-      return res.json({ status: "not_found" });
-    }
-
-    user.expiry = (user.expiry || Date.now()) + (parseInt(days || 1, 10) * 86400000);
-    await user.save();
-
-    res.json({ status: "extended", expiry: user.expiry });
-  } catch (err) {
-    console.log("EXTEND USER ERROR:", err);
-    res.json({ status: "error" });
-  }
+// ⏳ EXTEND
+app.post("/admin/extend-user", async (req,res)=>{
+const {username,days}=req.body;
+const user=await User.findOne({username});
+if(!user) return res.json({status:"not_found"});
+user.expiry+=days*86400000;
+await user.save();
+res.json({status:"extended"});
 });
 
-// API
-app.get("/api/user/stockyard/:username", async (req, res) => {
-  try {
-    const user = await User.findOne({ username: req.params.username });
+// 📡 API
+app.get("/api/user/stockyard/:username", async (req,res)=>{
+const user=await User.findOne({username:req.params.username});
+if(!user) return res.json({status:"error"});
+if(Date.now()>user.expiry) return res.json({status:"expired"});
 
-    if (!user) {
-      return res.json({ status: "error" });
-    }
-
-    if (Date.now() > user.expiry) {
-      return res.json({ status: "expired" });
-    }
-
-    res.json({
-      status: "success",
-      stockyard: user.stockyard || "",
-      vehicle: user.vehicle || "",
-      delivery_code: user.delivery_code || ""
-    });
-  } catch (err) {
-    console.log("API USER ERROR:", err);
-    res.json({ status: "error" });
-  }
+res.json({
+status:"success",
+stockyard:user.stockyard||"",
+vehicle:user.vehicle||"",
+delivery_code:user.delivery_code||""
+});
 });
 
-// Start server
-app.listen(process.env.PORT, () => {
-  console.log("Server running with MongoDB...");
+// 🚀 START
+app.listen(process.env.PORT,()=>{
+console.log("Server running with MongoDB...");
 });
