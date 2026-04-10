@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 
 const app = express();
 
-// ✅ CORS FIX
+// CORS
 app.use(cors({
   origin: "*",
   methods: ["GET", "POST", "OPTIONS"],
@@ -20,18 +20,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🔥 MongoDB Connect
+// MongoDB Connect
 mongoose.connect("mongodb+srv://sandbookingord_db_user:Ddotp12345@ddotp-cluster.zqakueo.mongodb.net/ddotp?retryWrites=true&w=majority")
   .then(() => console.log("MongoDB Connected"))
   .catch(err => console.log("MongoDB Error:", err));
 
-// 🔐 Admin
+// Admin credentials
 const ADMIN = {
   username: "admin",
   password: "1234"
 };
 
-// 📦 Schema
+// User Schema
 const UserSchema = new mongoose.Schema({
   username: { type: String, unique: true },
   password: String,
@@ -43,12 +43,12 @@ const UserSchema = new mongoose.Schema({
 
 const User = mongoose.model("User", UserSchema);
 
-// 🌐 Home
+// Home
 app.get("/", (req, res) => {
   res.send("DDOTP Server Running with DB");
 });
 
-// 🧪 TEST PAGE
+// Test Page
 app.get("/test", (req, res) => {
   res.send(`<!DOCTYPE html>
 <html>
@@ -57,7 +57,7 @@ app.get("/test", (req, res) => {
 <style>
 body{background:#111;color:#fff;font-family:sans-serif;padding:20px}
 input,button{padding:10px;margin:5px}
-pre{background:#222;padding:15px;border-radius:8px}
+pre{background:#222;padding:15px;border-radius:8px;white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -70,18 +70,26 @@ pre{background:#222;padding:15px;border-radius:8px}
 
 <script>
 async function loadData(){
-const u=document.getElementById("username").value;
-if(!u){alert("enter username");return;}
+  const usernameInput = document.getElementById("username");
+  const outputBox = document.getElementById("output");
 
-output.textContent="Loading...";
+  const u = usernameInput.value.trim();
 
-try{
-const res=await fetch("/api/user/stockyard/"+u);
-const data=await res.json();
-output.textContent=JSON.stringify(data,null,2);
-}catch(e){
-output.textContent="Error: "+e.message;
-}
+  if(!u){
+    alert("enter username");
+    return;
+  }
+
+  outputBox.textContent = "Loading...";
+
+  try{
+    const res = await fetch("/api/user/stockyard/" + encodeURIComponent(u));
+    const data = await res.json();
+
+    outputBox.textContent = JSON.stringify(data, null, 2);
+  }catch(e){
+    outputBox.textContent = "Error: " + e.message;
+  }
 }
 </script>
 
@@ -89,7 +97,7 @@ output.textContent="Error: "+e.message;
 </html>`);
 });
 
-// 🧠 ADMIN PAGE
+// Admin Page
 app.get("/admin", (req, res) => {
   res.send(`<!DOCTYPE html>
 <html>
@@ -98,7 +106,7 @@ app.get("/admin", (req, res) => {
 <style>
 body{background:#111;color:#fff;font-family:sans-serif}
 input,select{padding:8px;margin:5px}
-button{padding:8px;margin:5px}
+button{padding:8px;margin:5px;cursor:pointer}
 table{width:100%;margin-top:20px;border-collapse:collapse}
 td,th{border:1px solid #555;padding:8px;text-align:center}
 </style>
@@ -107,8 +115,8 @@ td,th{border:1px solid #555;padding:8px;text-align:center}
 
 <div id="loginBox">
 <h2>Admin Login</h2>
-<input id="adminUser">
-<input id="adminPass" type="password">
+<input id="adminUser" placeholder="Username">
+<input id="adminPass" type="password" placeholder="Password">
 <button onclick="adminLogin()">Login</button>
 <div id="msg"></div>
 </div>
@@ -130,8 +138,7 @@ td,th{border:1px solid #555;padding:8px;text-align:center}
 <table>
 <thead>
 <tr>
-<th>User</th><th>Password</th><th>Vehicle</th>
-<th>Stockyard</th><th>Delivery</th><th>Expiry</th><th>Actions</th>
+<th>User</th><th>Password</th><th>Vehicle</th><th>Stockyard</th><th>Delivery</th><th>Expiry</th><th>Actions</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
@@ -139,40 +146,58 @@ td,th{border:1px solid #555;padding:8px;text-align:center}
 </div>
 
 <script>
-
 function adminLogin(){
-fetch("/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},
-body:JSON.stringify({username:adminUser.value,password:adminPass.value})})
-.then(r=>r.json()).then(d=>{
+fetch("/admin/login",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+username:document.getElementById("adminUser").value,
+password:document.getElementById("adminPass").value
+})
+})
+.then(r=>r.json())
+.then(d=>{
 if(d.status==="success"){
-loginBox.style.display="none";
-panelBox.style.display="block";
+document.getElementById("loginBox").style.display="none";
+document.getElementById("panelBox").style.display="block";
 loadUsers();
-}else msg.innerText="Invalid";
+}else{
+document.getElementById("msg").innerText="Invalid";
+}
 });
 }
 
 function createUser(){
-fetch("/admin/create-user",{method:"POST",headers:{"Content-Type":"application/json"},
-body:JSON.stringify({username:username.value,password:password.value,days:days.value})})
-.then(r=>r.json()).then(d=>{
+fetch("/admin/create-user",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+username:document.getElementById("username").value,
+password:document.getElementById("password").value,
+days:document.getElementById("days").value
+})
+})
+.then(r=>r.json())
+.then(d=>{
 alert(JSON.stringify(d));
 loadUsers();
 });
 }
 
 function loadUsers(){
-fetch("/admin/users").then(r=>r.json()).then(data=>{
+fetch("/admin/users")
+.then(r=>r.json())
+.then(data=>{
 let html="";
 for(let u in data){
-let e=new Date(data[u].expiry).toLocaleString();
-html+=\`
+let e = data[u].expiry ? new Date(data[u].expiry).toLocaleString() : "";
+html += \`
 <tr>
 <td>\${u}</td>
-<td><input value="\${data[u].password}" id="p_\${u}"></td>
-<td><input value="\${data[u].vehicle||""}" id="v_\${u}"></td>
-<td><input value="\${data[u].stockyard||""}" id="s_\${u}"></td>
-<td><input value="\${data[u].delivery_code||""}" id="d_\${u}"></td>
+<td><input value="\${data[u].password || ""}" id="p_\${u}"></td>
+<td><input value="\${data[u].vehicle || ""}" id="v_\${u}"></td>
+<td><input value="\${data[u].stockyard || ""}" id="s_\${u}"></td>
+<td><input value="\${data[u].delivery_code || ""}" id="d_\${u}"></td>
 <td>\${e}</td>
 <td>
 <button onclick="updateUser('\${u}')">Update</button>
@@ -182,105 +207,180 @@ html+=\`
 </td>
 </tr>\`;
 }
-table.innerHTML=html;
+document.getElementById("table").innerHTML = html;
 });
 }
 
 function updateUser(u){
-fetch("/admin/update-user",{method:"POST",headers:{"Content-Type":"application/json"},
+fetch("/admin/update-user",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
 body:JSON.stringify({
 username:u,
 vehicle:document.getElementById("v_"+u).value,
 stockyard:document.getElementById("s_"+u).value,
 delivery_code:document.getElementById("d_"+u).value
-})}).then(()=>loadUsers());
+})
+})
+.then(r=>r.json())
+.then(()=>loadUsers());
 }
 
 function deleteUser(u){
-fetch("/admin/delete-user",{method:"POST",headers:{"Content-Type":"application/json"},
-body:JSON.stringify({username:u})}).then(()=>loadUsers());
+fetch("/admin/delete-user",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:u})
+})
+.then(r=>r.json())
+.then(()=>loadUsers());
 }
 
 function extendUser(u,d){
-fetch("/admin/extend-user",{method:"POST",headers:{"Content-Type":"application/json"},
-body:JSON.stringify({username:u,days:d})}).then(()=>loadUsers());
+fetch("/admin/extend-user",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({username:u,days:d})
+})
+.then(r=>r.json())
+.then(()=>loadUsers());
 }
-
 </script>
 
 </body>
 </html>`);
 });
 
-// 🔐 LOGIN API
-app.post("/admin/login",(req,res)=>{
-const {username,password}=req.body;
-if(username==="admin" && password==="1234")
-return res.json({status:"success"});
-res.json({status:"invalid"});
+// Admin Login API
+app.post("/admin/login", (req, res) => {
+  const { username, password } = req.body;
+  if (username === ADMIN.username && password === ADMIN.password) {
+    return res.json({ status: "success" });
+  }
+  res.json({ status: "invalid" });
 });
 
-// ➕ CREATE
-app.post("/admin/create-user", async (req,res)=>{
-const {username,password,days}=req.body;
-if(!username||!password) return res.json({status:"missing"});
+// Create User
+app.post("/admin/create-user", async (req, res) => {
+  try {
+    const { username, password, days } = req.body;
 
-const exist=await User.findOne({username});
-if(exist) return res.json({status:"exists"});
+    if (!username || !password) {
+      return res.json({ status: "missing" });
+    }
 
-const expiry=Date.now()+(days*86400000);
+    const exist = await User.findOne({ username });
+    if (exist) {
+      return res.json({ status: "exists" });
+    }
 
-await User.create({username,password,stockyard:"",vehicle:"",delivery_code:"",expiry});
+    const expiry = Date.now() + (parseInt(days || 1, 10) * 86400000);
 
-res.json({status:"created"});
+    await User.create({
+      username,
+      password,
+      stockyard: "",
+      vehicle: "",
+      delivery_code: "",
+      expiry
+    });
+
+    res.json({ status: "created" });
+  } catch (err) {
+    console.log("CREATE USER ERROR:", err);
+    res.json({ status: "error", message: err.message });
+  }
 });
 
-// 📄 USERS
-app.get("/admin/users", async (req,res)=>{
-const users=await User.find();
-let out={};
-users.forEach(u=>out[u.username]=u);
-res.json(out);
+// Get Users
+app.get("/admin/users", async (req, res) => {
+  try {
+    const users = await User.find().lean();
+    let out = {};
+    users.forEach(u => {
+      out[u.username] = u;
+    });
+    res.json(out);
+  } catch (err) {
+    console.log("GET USERS ERROR:", err);
+    res.json({});
+  }
 });
 
-// 🔄 UPDATE
-app.post("/admin/update-user", async (req,res)=>{
-const {username,vehicle,stockyard,delivery_code}=req.body;
-await User.updateOne({username},{vehicle,stockyard,delivery_code});
-res.json({status:"updated"});
+// Update User
+app.post("/admin/update-user", async (req, res) => {
+  try {
+    const { username, vehicle, stockyard, delivery_code } = req.body;
+
+    await User.updateOne(
+      { username },
+      { vehicle, stockyard, delivery_code }
+    );
+
+    res.json({ status: "updated" });
+  } catch (err) {
+    console.log("UPDATE USER ERROR:", err);
+    res.json({ status: "error" });
+  }
 });
 
-// ❌ DELETE
-app.post("/admin/delete-user", async (req,res)=>{
-await User.deleteOne({username:req.body.username});
-res.json({status:"deleted"});
+// Delete User
+app.post("/admin/delete-user", async (req, res) => {
+  try {
+    await User.deleteOne({ username: req.body.username });
+    res.json({ status: "deleted" });
+  } catch (err) {
+    console.log("DELETE USER ERROR:", err);
+    res.json({ status: "error" });
+  }
 });
 
-// ⏳ EXTEND
-app.post("/admin/extend-user", async (req,res)=>{
-const {username,days}=req.body;
-const user=await User.findOne({username});
-if(!user) return res.json({status:"not_found"});
-user.expiry+=days*86400000;
-await user.save();
-res.json({status:"extended"});
+// Extend Expiry
+app.post("/admin/extend-user", async (req, res) => {
+  try {
+    const { username, days } = req.body;
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return res.json({ status: "not_found" });
+    }
+
+    user.expiry = (user.expiry || Date.now()) + (parseInt(days || 1, 10) * 86400000);
+    await user.save();
+
+    res.json({ status: "extended", expiry: user.expiry });
+  } catch (err) {
+    console.log("EXTEND USER ERROR:", err);
+    res.json({ status: "error" });
+  }
 });
 
-// 📡 API
-app.get("/api/user/stockyard/:username", async (req,res)=>{
-const user=await User.findOne({username:req.params.username});
-if(!user) return res.json({status:"error"});
-if(Date.now()>user.expiry) return res.json({status:"expired"});
+// User API
+app.get("/api/user/stockyard/:username", async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username });
 
-res.json({
-status:"success",
-stockyard:user.stockyard||"",
-vehicle:user.vehicle||"",
-delivery_code:user.delivery_code||""
-});
+    if (!user) {
+      return res.json({ status: "error" });
+    }
+
+    if (Date.now() > user.expiry) {
+      return res.json({ status: "expired" });
+    }
+
+    res.json({
+      status: "success",
+      stockyard: user.stockyard || "",
+      vehicle: user.vehicle || "",
+      delivery_code: user.delivery_code || ""
+    });
+  } catch (err) {
+    console.log("API USER ERROR:", err);
+    res.json({ status: "error" });
+  }
 });
 
-// 🚀 START
-app.listen(process.env.PORT,()=>{
-console.log("Server running with MongoDB...");
+// Start
+app.listen(process.env.PORT, () => {
+  console.log("Server running with MongoDB...");
 });
