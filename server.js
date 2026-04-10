@@ -27,13 +27,14 @@ app.get("/", (req, res) => {
   res.send("DDOTP Running");
 });
 
-// 🔥 AUTOFILL PAGE (DEBUG VERSION)
-app.get("/autofill", (req, res) => {
+
+// 🔥 AUTOFILL2 (NEW - NO CACHE)
+app.get("/autofill2", (req, res) => {
   res.send(`
 <!DOCTYPE html>
 <html>
 <head>
-<title>DDOTP Auto Fill</title>
+<title>DDOTP Auto Fill V2</title>
 <style>
 body{background:#111;color:#fff;font-family:sans-serif;padding:20px}
 input{display:block;margin:10px 0;padding:10px;width:300px}
@@ -42,10 +43,10 @@ button{padding:10px;margin-top:10px}
 </head>
 <body>
 
-<h2>Auto Fill Demo</h2>
+<h2>Auto Fill Demo V2</h2>
 
 <input id="username" placeholder="Enter Username">
-<button onclick="loadData()">Load & Auto Fill</button>
+<button id="btn">Load & Auto Fill</button>
 
 <hr>
 
@@ -59,24 +60,25 @@ button{padding:10px;margin-top:10px}
 <input id="delivery_code">
 
 <script>
-async function loadData(){
+document.getElementById("btn").onclick = async function () {
+
   const u = document.getElementById("username").value.trim();
 
-  if(!u){
+  if (!u) {
     alert("Enter username");
     return;
   }
 
   alert("Fetching for: " + u);
 
-  try{
+  try {
     const res = await fetch("/api/user/stockyard/" + encodeURIComponent(u));
     const data = await res.json();
 
     alert("Response: " + JSON.stringify(data));
 
-    if(data.status !== "success"){
-      alert("User not valid / expired");
+    if (data.status !== "success") {
+      alert("User not valid / expired / not found");
       return;
     }
 
@@ -86,16 +88,18 @@ async function loadData(){
 
     alert("Filled Successfully");
 
-  }catch(e){
+  } catch (e) {
     alert("Error: " + e.message);
   }
-}
+
+};
 </script>
 
 </body>
 </html>
-`);
+  `);
 });
+
 
 // CREATE USER
 app.post("/admin/create-user", async (req, res) => {
