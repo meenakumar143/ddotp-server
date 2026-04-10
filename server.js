@@ -16,22 +16,18 @@ const ADMIN = {
 };
 
 const UserSchema = new mongoose.Schema({
-  username: { type: String, unique: true },
-  password: String,
-  stockyard: String,
-  vehicle: String,
-  delivery_code: String,
-  expiry: Number
+  username: { type: String, required: true, unique: true, trim: true },
+  password: { type: String, required: true },
+  stockyard: { type: String, default: "" },
+  vehicle: { type: String, default: "" },
+  delivery_code: { type: String, default: "" },
+  expiry: { type: Number, required: true }
 });
 
 const User = mongoose.model("User", UserSchema);
 
 app.get("/", (req, res) => {
   res.send("DDOTP Server Running with DB");
-});
-
-app.get("/otp", (req, res) => {
-  res.json({ otp: 1234 });
 });
 
 app.get("/admin", (req, res) => {
@@ -198,6 +194,9 @@ function createUser() {
   .then(data => {
     alert(JSON.stringify(data));
     loadUsers();
+  })
+  .catch(() => {
+    alert("Create request failed");
   });
 }
 
@@ -279,7 +278,9 @@ app.post("/admin/login", (req, res) => {
 
 app.post("/admin/create-user", async (req, res) => {
   try {
-    const { username, password, days } = req.body;
+    const username = String(req.body.username || "").trim();
+    const password = String(req.body.password || "").trim();
+    const days = parseInt(req.body.days || 1, 10);
 
     if (!username || !password) {
       return res.json({ status: "missing_fields" });
@@ -290,10 +291,9 @@ app.post("/admin/create-user", async (req, res) => {
       return res.json({ status: "exists" });
     }
 
-    const totalDays = parseInt(days || 1, 10);
-    const expiry = Date.now() + (totalDays * 24 * 60 * 60 * 1000);
+    const expiry = Date.now() + (days * 24 * 60 * 60 * 1000);
 
-    const user = new User({
+    await User.create({
       username,
       password,
       stockyard: "",
@@ -302,17 +302,21 @@ app.post("/admin/create-user", async (req, res) => {
       expiry
     });
 
-    await user.save();
-    res.json({ status: "created", expiry });
+    res.json({ status: "created" });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ status: "error" });
+    console.log("CREATE USER ERROR:", err);
+
+    if (err.code === 11000) {
+      return res.json({ status: "exists" });
+    }
+
+    res.json({ status: "error", message: err.message });
   }
 });
 
 app.get("/admin/users", async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find().lean();
     const result = {};
 
     users.forEach(u => {
@@ -327,8 +331,8 @@ app.get("/admin/users", async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ status: "error" });
+    console.log("GET USERS ERROR:", err);
+    res.json({});
   }
 });
 
@@ -348,8 +352,8 @@ app.post("/admin/update-user", async (req, res) => {
 
     res.json({ status: "updated" });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ status: "error" });
+    console.log("UPDATE USER ERROR:", err);
+    res.json({ status: "error" });
   }
 });
 
@@ -359,8 +363,8 @@ app.post("/admin/delete-user", async (req, res) => {
     await User.deleteOne({ username });
     res.json({ status: "deleted" });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ status: "error" });
+    console.log("DELETE USER ERROR:", err);
+    res.json({ status: "error" });
   }
 });
 
@@ -383,8 +387,8 @@ app.get("/api/user/stockyard/:username", async (req, res) => {
       delivery_code: user.delivery_code || ""
     });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ status: "error" });
+    console.log("API USER ERROR:", err);
+    res.json({ status: "error" });
   }
 });
 
