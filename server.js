@@ -3,32 +3,14 @@ const app = express();
 
 app.use(express.json());
 
-// Sample OTP storage (temporary)
-let otpStore = {};
+app.get("/", (req, res) => {
+    res.send("DDOTP Server Running");
+});
 
-// Generate OTP API
 app.get("/otp", (req, res) => {
-    const user = req.query.user || "default";
-
-    const otp = Math.floor(1000 + Math.random() * 9000);
-    otpStore[user] = otp;
-
-    res.json({
-        status: "success",
-        user: user,
-        otp: otp
-    });
+    res.json({ otp: 1234 });
 });
 
-// Get OTP API
-app.get("/get-otp", (req, res) => {
-    const user = req.query.user || "default";
-
-    res.json({
-        otp: otpStore[user] || null
-    });
-});
-
-app.listen(3000, () => {
-    console.log("Server running on port 3000");
+app.listen(process.env.PORT || 3000, () => {
+    console.log("Server running...");
 });
