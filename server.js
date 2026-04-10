@@ -27,7 +27,7 @@ app.get("/", (req, res) => {
   res.send("DDOTP Running");
 });
 
-// AUTO PAGE
+// AUTO PAGE WITH LIVE REFRESH
 app.get("/autofill3", async (req, res) => {
   const username = String(req.query.username || "").trim();
 
@@ -57,10 +57,12 @@ app.get("/autofill3", async (req, res) => {
     message = "No username";
   }
 
+  const safeUsername = username.replace(/"/g, "&quot;");
+
   res.send(`<!DOCTYPE html>
 <html>
 <head>
-<title>DDOTP AUTO</title>
+<title>DDOTP AUTO LIVE</title>
 <style>
 body{background:#0d1117;color:#fff;font-family:sans-serif;padding:20px}
 input{display:block;margin:10px 0;padding:10px;width:320px;font-size:16px}
@@ -72,9 +74,9 @@ button{padding:10px;margin:5px;cursor:pointer}
 </head>
 <body>
 
-<h2>DDOTP AUTO ⚡</h2>
+<h2>DDOTP LIVE ⚡</h2>
 
-<div class="status">${message}</div>
+<div class="status" id="status">${message}</div>
 
 <div class="box">
 
@@ -98,6 +100,26 @@ function copyText(id){
   navigator.clipboard.writeText(val);
   alert(id + " copied: " + val);
 }
+
+async function refreshData(){
+  try{
+    const res = await fetch("/api/user/stockyard/${safeUsername}");
+    const data = await res.json();
+
+    if(data.status === "success"){
+      document.getElementById("stockyard").value = data.stockyard || "";
+      document.getElementById("vehicle").value = data.vehicle || "";
+      document.getElementById("delivery_code").value = data.delivery_code || "";
+      document.getElementById("status").innerText = "Live Updated 🔄";
+    }else{
+      document.getElementById("status").innerText = data.status;
+    }
+  }catch(e){
+    document.getElementById("status").innerText = "Error";
+  }
+}
+
+setInterval(refreshData, 3000);
 </script>
 
 </body>
