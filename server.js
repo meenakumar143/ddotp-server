@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect("mongodb+srv://sandbookingord_db_user:TzsFjhlxFvhbwXbo@ddotp-cluster.zqakueo.mongodb.net/ddotp?retryWrites=true&w=majority")
+mongoose.connect("mongodb+srv://sandbookingord_db_user:Ddotp12345@ddotp-cluster.zqakueo.mongodb.net/ddotp?retryWrites=true&w=majority")
   .then(() => console.log("MongoDB Connected"))
   .catch(err => console.log("MongoDB Error:", err));
 
