@@ -5,20 +5,8 @@ const mongoose = require("mongoose");
 const app = express();
 
 // CORS
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"]
-}));
-
+app.use(cors());
 app.use(express.json());
-
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-  next();
-});
 
 // MongoDB
 mongoose.connect("mongodb+srv://sandbookingord_db_user:Ddotp12345@ddotp-cluster.zqakueo.mongodb.net/ddotp?retryWrites=true&w=majority")
@@ -40,7 +28,7 @@ app.get("/", (req, res) => {
   res.send("DDOTP Running");
 });
 
-// TEST PAGE (FIXED)
+// 🔥 TEST PAGE (DEBUG)
 app.get("/test", (req, res) => {
   res.send(`
 <!DOCTYPE html>
@@ -56,31 +44,35 @@ pre{background:#222;padding:15px;border-radius:8px;white-space:pre-wrap}
 <body>
 
 <h2>DDOTP Test Page</h2>
+
 <input id="username" placeholder="Enter username">
-<button id="loadBtn">Load Data</button>
+<button onclick="loadData()">Load Data</button>
 
 <pre id="output">Waiting...</pre>
 
 <script>
-document.getElementById("loadBtn").addEventListener("click", async function () {
+function loadData() {
   const u = document.getElementById("username").value.trim();
   const out = document.getElementById("output");
 
-  if(!u){
+  out.textContent = "Button Clicked";
+
+  if (!u) {
     alert("enter username");
     return;
   }
 
-  out.textContent = "Loading...";
+  out.textContent = "Loading for: " + u;
 
-  try {
-    const res = await fetch("/api/user/stockyard/" + encodeURIComponent(u));
-    const data = await res.json();
-    out.textContent = JSON.stringify(data, null, 2);
-  } catch (e) {
-    out.textContent = "Error: " + e.message;
-  }
-});
+  fetch("/api/user/stockyard/" + encodeURIComponent(u))
+    .then(res => res.text())
+    .then(txt => {
+      out.textContent = txt;
+    })
+    .catch(err => {
+      out.textContent = "Error: " + err.message;
+    });
+}
 </script>
 
 </body>
@@ -88,19 +80,13 @@ document.getElementById("loadBtn").addEventListener("click", async function () {
 `);
 });
 
-// ADMIN LOGIN
-app.post("/admin/login", (req, res) => {
-  if (req.body.username === "admin" && req.body.password === "1234") {
-    return res.json({ status: "success" });
-  }
-  res.json({ status: "invalid" });
-});
-
 // CREATE USER
 app.post("/admin/create-user", async (req, res) => {
   const { username, password, days } = req.body;
 
-  if (!username || !password) return res.json({ status: "missing" });
+  if (!username || !password) {
+    return res.json({ status: "missing" });
+  }
 
   const exist = await User.findOne({ username });
   if (exist) return res.json({ status: "exists" });
@@ -119,7 +105,7 @@ app.post("/admin/create-user", async (req, res) => {
   res.json({ status: "created" });
 });
 
-// USERS LIST
+// USERS
 app.get("/admin/users", async (req, res) => {
   const users = await User.find();
   let out = {};
