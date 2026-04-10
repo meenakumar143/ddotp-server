@@ -1,6 +1,8 @@
 const express = require("express");
+const cors = require("cors");
 const app = express();
 
+app.use(cors());
 app.use(express.json());
 
 const ADMIN = {
@@ -18,7 +20,6 @@ app.get("/otp", (req, res) => {
     res.json({ otp: 1234 });
 });
 
-// Admin login
 app.post("/admin/login", (req, res) => {
     const { username, password } = req.body;
 
@@ -29,7 +30,6 @@ app.post("/admin/login", (req, res) => {
     res.json({ status: "invalid" });
 });
 
-// Create user
 app.post("/admin/create-user", (req, res) => {
     const { username, password } = req.body;
 
@@ -48,30 +48,27 @@ app.post("/admin/create-user", (req, res) => {
         delivery_code: ""
     };
 
-    res.json({ status: "created", user: users[username] });
+    res.json({ status: "created" });
 });
 
-// Get all users
 app.get("/admin/users", (req, res) => {
     res.json(users);
 });
 
-// Update user
 app.post("/admin/update-user", (req, res) => {
-    const { username, stockyard, vehicle, delivery_code } = req.body;
+    const { username, vehicle, stockyard, delivery_code } = req.body;
 
     if (!users[username]) {
         return res.json({ status: "not_found" });
     }
 
-    users[username].stockyard = stockyard || "";
     users[username].vehicle = vehicle || "";
+    users[username].stockyard = stockyard || "";
     users[username].delivery_code = delivery_code || "";
 
-    res.json({ status: "updated", user: users[username] });
+    res.json({ status: "updated" });
 });
 
-// Delete user
 app.post("/admin/delete-user", (req, res) => {
     const { username } = req.body;
 
@@ -83,7 +80,6 @@ app.post("/admin/delete-user", (req, res) => {
     res.json({ status: "deleted" });
 });
 
-// Script API
 app.get("/api/user/stockyard/:username", (req, res) => {
     const user = users[req.params.username];
 
